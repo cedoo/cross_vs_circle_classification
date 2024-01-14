@@ -91,7 +91,10 @@ def init_grid(rows, cols, color):
     return grid
 
 button_y = HEIGHT - TOOLBAR_HEIGHT + 50
-save_path = sys.argv[1]
+if len(sys.argv) > 1:
+    save_path = "flags/" + sys.argv[1]
+else:
+    save_path = "dupa"
 count = 1
 buttons = [
     Button(OFFSET, button_y, 100, 40, GRAY, "CLEAR", WHITE),
@@ -202,19 +205,25 @@ while run:
             # CONTINUOUS GUESSING CROSS VS CIRCLE
             dupa = np.asarray(grid, dtype=np.uint8)
             drawing = Image.fromarray(dupa)
-            # single_image_new = add_transform(drawing).unsqueeze(dim=0)
-            # model_0.eval()
-            # with torch.inference_mode():
-            #     # print(f"trainig tensor: {single_image_new}")
-            #     # print(f"shape: {single_image_new.shape}")
-            #     pred = model_0(single_image_new)
+            single_image_new = add_transform(drawing).unsqueeze(dim=0)
+            model_0.eval()
+            with torch.inference_mode():
+                # print(f"trainig tensor: {single_image_new}")
+                # print(f"shape: {single_image_new.shape}")
+                pred = model_0(single_image_new)
 
-            # # print(f"Output logits:\n{pred}\n")
-            # print("---------------")
-            # percentages = torch.softmax(pred, dim=1)
+            # print(f"Output logits:\n{pred}\n")
+            print("---------------\nGuess:")
+            percentages = torch.softmax(pred, dim=1)
+            guesses = np.column_stack((train_data.classes, percentages.tolist()[0]))
+            # print(percentages.argsort())
+            guesses = guesses[percentages.argsort()[0]]
             # for i, sign in enumerate(train_data.classes):
-            #     print(f"It's {percentages[0][i]*100:.2f}% {sign}")
-            # print(f"Guess: {train_data.classes[torch.argmax(percentages)]}")
+        #         print(f"It's {percentages[0][i]*100:.2f}% {sign}")
+            for i in range (0,10):
+                if float(guesses[len(guesses) - i - 1][1]) > 0.001:
+                    print(f"{guesses[len(guesses) - i - 1][0]} for {float(guesses[len(guesses) - i - 1][1])*100:.2f}%")
+                # print(f"{train_data.classes[torch.argmax(percentages)]} for {percentages[0][torch.argmax(percentages)]*100:.2f}%")
             
     draw(WIN, grid, buttons)
 pygame.quit()

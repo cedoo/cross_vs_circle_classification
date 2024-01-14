@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-import torchvision
 from pathlib import Path
 import random
 import numpy as np
@@ -12,6 +11,7 @@ import os
 import torchmetrics
 from timeit import default_timer as timer
 from tqdm.auto import tqdm
+import torch_directml
 
 class RuchamPsaJakSra(nn.Module):
     def __init__(self, input_shape: int, hidden_units: int, output_shape: int):
@@ -85,16 +85,17 @@ class RuchamPsaJakSraDrugi(nn.Module):
 
 def print_train_time(start: float, end: float, device: torch.device = None):
     total_time = end - start
-    print(f"Train time on {device}: {total_time:.3f} seconds")
+    print(f"Train time: {total_time:.3f} seconds")
     return total_time
 
 device = "cpu"
+if torch_directml.device():
+    device = torch_directml.device()
 BATCH_SIZE = 64
-train_dir = Path("data/train/")
-test_dir = Path("data/test/")
+train_dir = Path("augmented_output/train/")
+test_dir = Path("augmented_output/test/")
 add_transform = transforms.Compose([
     transforms.Resize(64),
-    transforms.Grayscale(),
     transforms.ToTensor()
 ])
 train_data = datasets.ImageFolder(root=train_dir, transform=add_transform)
@@ -111,13 +112,13 @@ test_dataloader = DataLoader(dataset=test_data,
 train_image_batch, train_label_batch = next(iter(train_dataloader))
 
 input_shape = len(nn.Flatten()(train_image_batch[0])[0])
-hidden_units = 32
+hidden_units = 64
 output_shape = len(train_data.classes)
 
-model_0 = RuchamPsaJakSraKonwulsyjny(1, hidden_units, output_shape)
-model_0.to("cpu")
+model_0 = RuchamPsaJakSraKonwulsyjny(3, hidden_units, output_shape)
+model_0.to(device)
 loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(params=model_0.parameters(), lr=0.1)
+optimizer = torch.optim.SGD(params=model_0.parameters(), lr=0.05)
 
 epochs = 3
 train_time_start_on_cpu = timer()
@@ -126,8 +127,11 @@ if __name__ == '__main__':
         print(f"\nEpoch: {epoch}\n-------")
         ### Training
         train_loss = 0
+        model_0.to(device)
         # Add a loop to loop through training batches
         for batch, (X, y) in enumerate(train_dataloader):
+            X = X.to(device)
+            y = y.to(device)
             model_0.train() 
             # 1. Forward pass
             # print(f"trainig tensor: {X}")
@@ -149,9 +153,12 @@ if __name__ == '__main__':
         print(f"average train loss per epoch: {train_loss:.10f}")
 
         test_loss, test_acc = 0, 0
+        model_0.to("cpu")
         model_0.eval()
         with torch.inference_mode():
             for X, y in test_dataloader:
+                X = X.to("cpu")
+                y = y.to("cpu")
                 test_pred = model_0(X)
                 test_loss += loss_fn(test_pred, y)
                 test_acc += torchmetrics.functional.accuracy(test_pred, y, task="multiclass", num_classes=output_shape)
