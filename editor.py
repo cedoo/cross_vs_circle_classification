@@ -1,7 +1,9 @@
 import pygame
 import numpy as np
-from nn import *
 import sys
+from torchvision import datasets, transforms
+import torch
+from PIL import Image
 
 pygame.init()
 pygame.font.init()
@@ -9,8 +11,9 @@ pygame.font.init()
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
+GREEN = (0, 100, 0)
+BLUE_DARK = (0, 0, 150)
+BLUE_LIGHT = (100, 100, 255)
 YELLOW = (255, 255, 0)
 GRAY = (100, 100, 100)
 
@@ -26,7 +29,8 @@ DRAW_GRID_LINES = False
 CURSOR_SIZE = 2
 
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-model_0.load_state_dict(torch.load("model/model.pth"))
+# model_0.load_state_dict(torch.load("model_hid40_batch128_acc92/model.pt"))
+model_0 = torch.jit.load("model_hid82_batch192_acc86/model_scripted.pt")
 model_0.to("cpu")
 
 class Button:
@@ -63,6 +67,11 @@ class Button:
             return True
         else:
             return False
+
+add_transform = transforms.Compose([
+    transforms.Resize(32),
+    transforms.ToTensor()
+])
 
 def get_font(size):
     return pygame.font.SysFont("consolas", size)
@@ -104,11 +113,12 @@ buttons = [
     Button(OFFSET + 100, button_y - 50, 40, 40, RED, name="colors"),
     Button(OFFSET + 150, button_y - 50, 40, 40, YELLOW, name="colors"),
     Button(OFFSET + 200, button_y - 50, 40, 40, GREEN, name="colors"),
-    Button(OFFSET + 250, button_y - 50, 40, 40, BLUE, name="colors"),
-    Button(OFFSET + 300, button_y - 50, 20, 40, BLACK, "-", WHITE, BLACK),
-    Button(OFFSET + 340, button_y - 50, 20, 40, BLACK, "+", WHITE, BLACK),
+    Button(OFFSET + 250, button_y - 50, 40, 40, BLUE_LIGHT, name="colors"),
+    Button(OFFSET + 300, button_y - 50, 40, 40, BLUE_DARK, name="colors"),
+    Button(OFFSET + 350, button_y - 50, 20, 40, BLACK, "-", WHITE, BLACK),
+    Button(OFFSET + 390, button_y - 50, 20, 40, BLACK, "+", WHITE, BLACK),
     Button(WIDTH - OFFSET - 60, button_y - 50, 60, 40, GRAY, "FILL", WHITE, frame_color=WHITE),
-    Button(OFFSET + 320, button_y - 50, 20, 40, BLACK, str(CURSOR_SIZE), WHITE, BLACK, "size"),
+    Button(OFFSET + 370, button_y - 50, 20, 40, BLACK, str(CURSOR_SIZE), WHITE, BLACK, "size"),
     Button(OFFSET + 270, button_y, 350, 40, BLACK, save_path + "/" + str(count) + ".bmp", WHITE, BLACK, "info")
 ]
 pygame.display.set_caption("Maluj")
@@ -120,6 +130,8 @@ drawing_color = BLACK
 clicked = False
 x1 = y1 = 0
 guessing = False
+train_dir = "augmented_output/train/"
+train_data = datasets.ImageFolder(root=train_dir, transform=add_transform)
 # print(save_path)
 while run:
     clock.tick(FPS)

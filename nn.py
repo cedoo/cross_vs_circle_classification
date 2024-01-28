@@ -55,7 +55,7 @@ class RuchamPsaJakSraKonwulsyjny(nn.Module):
             nn.Flatten(),
             # Where did this in_features shape come from? 
             # It's because each layer of our network compresses and changes the shape of our inputs data.
-            nn.Linear(in_features=hidden_units*16*16, 
+            nn.Linear(in_features=hidden_units*8*8, 
                       out_features=output_shape)
         )
 
@@ -91,11 +91,11 @@ def print_train_time(start: float, end: float, device: torch.device = None):
 device = "cpu"
 if torch_directml.device():
     device = torch_directml.device()
-BATCH_SIZE = 64
+BATCH_SIZE = 192
 train_dir = Path("augmented_output/train/")
 test_dir = Path("augmented_output/test/")
 add_transform = transforms.Compose([
-    transforms.Resize(64),
+    transforms.Resize(32),
     transforms.ToTensor()
 ])
 train_data = datasets.ImageFolder(root=train_dir, transform=add_transform)
@@ -112,15 +112,15 @@ test_dataloader = DataLoader(dataset=test_data,
 train_image_batch, train_label_batch = next(iter(train_dataloader))
 
 input_shape = len(nn.Flatten()(train_image_batch[0])[0])
-hidden_units = 64
+hidden_units = 82
 output_shape = len(train_data.classes)
 
 model_0 = RuchamPsaJakSraKonwulsyjny(3, hidden_units, output_shape)
 model_0.to(device)
 loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(params=model_0.parameters(), lr=0.05)
+optimizer = torch.optim.SGD(params=model_0.parameters(), lr=0.04)
 
-epochs = 3
+epochs = 1
 train_time_start_on_cpu = timer()
 if __name__ == '__main__':
     for epoch in tqdm(range(epochs)):
@@ -149,6 +149,7 @@ if __name__ == '__main__':
             # Print out how many samples have been seen
             if (batch+1) % 45 == 0:
                 print(f"Looked at {(batch+1) * len(X)}/{len(train_dataloader.dataset)} samples")
+                print(f"current loss: {loss}")
         train_loss /= len(train_dataloader)
         print(f"average train loss per epoch: {train_loss:.10f}")
 
@@ -174,6 +175,8 @@ if __name__ == '__main__':
                                         device=str(next(model_0.parameters()).device))
 
     torch.save(obj=model_0.state_dict(),f="model/model.pth")
+    model_scripted = torch.jit.script(model_0)
+    model_scripted.save("model/model_scripted.pt")
 
 # Test on specific image
 
